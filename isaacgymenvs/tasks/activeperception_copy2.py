@@ -317,7 +317,7 @@ class activeperception(VecTask):
             vel = gymtorch.unwrap_tensor(self.actions_tensor)
             self.gym.set_dof_velocity_target_tensor(self.sim, vel)
         
-        print(self.actions_tensor.cpu().numpy())
+        conditional_print(self.actions_tensor.cpu().numpy())
 
         #forces = gymtorch.unwrap_tensor(self.actions_tensor)
         #self.gym.set_dof_actuation_force_tensor(self.sim, forces)
