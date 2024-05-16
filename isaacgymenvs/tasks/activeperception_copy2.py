@@ -7,7 +7,7 @@ from isaacgym import gymutil, gymtorch, gymapi
 from .base.vec_task import VecTask
 
 import cv2  # importing for visualization
-import isaacgymenvs.tasks.utils.activeperception_utils as utils
+#import isaacgymenvs.tasks.utils.activeperception_utils as utils
 
 from . import background_tools
 from . import my_config
@@ -102,7 +102,7 @@ class activeperception(VecTask):
         asset_list = os.listdir(asset_root) #TEMP4
         #TEMP4 asset_metadata = "../../ABO_exploration/ABO_size_filtered_strict.csv"
         asset_metadata = "/imaging/jzhou/stimuli_processing/2024-02-13_11:56/ABO/metadata.csv" #TEMP4
-        asset_paths = utils.get_column(asset_metadata, 'path')
+        #asset_paths = utils.get_column(asset_metadata, 'path')
 
         # initialize random generator (used to select assets in environment creation loop)
         # set seed=None for different choices each time train.py is run
