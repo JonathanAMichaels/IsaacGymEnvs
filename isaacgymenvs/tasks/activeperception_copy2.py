@@ -42,7 +42,9 @@ class activeperception(VecTask):
         self.dof_pos = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 0]
         self.dof_vel = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 1]
         #self.actions_tensor = torch.zeros(self.num_envs * self.num_dof, device=self.device, dtype=torch.float)
-        self.actions_tensor = torch.normal(0.0, 1.0, (1, self.num_envs * self.num_dof), device=self.device)
+        self.torch_rng = torch.Generator(device=self.device)
+        self.torch_rng.seed()
+        self.actions_tensor = torch.normal(0.0, 1.0, (1, self.num_envs * self.num_dof), generator=self.torch_rng, device=self.device)
         #self.actions_tensor = torch.tensor([70.0, 0.1, 0.03], device=self.device).repeat(self.num_envs)
 
         self.gym.viewer_camera_look_at(
@@ -315,7 +317,7 @@ class activeperception(VecTask):
             vel = gymtorch.unwrap_tensor(self.actions_tensor)
             self.gym.set_dof_velocity_target_tensor(self.sim, vel)
         
-        print(self.actions_tensor.cpu().numpy())
+        conditional_print(self.actions_tensor.cpu().numpy())
 
         #forces = gymtorch.unwrap_tensor(self.actions_tensor)
         #self.gym.set_dof_actuation_force_tensor(self.sim, forces)
