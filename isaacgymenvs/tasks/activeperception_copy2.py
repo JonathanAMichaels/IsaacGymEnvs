@@ -21,6 +21,43 @@ def conditional_print(*args):
     else:
         pass
 
+import xml.etree.ElementTree as ET
+
+def modify_urdf(file_name):
+    # Load the URDF file
+    tree = ET.parse(file_name)
+    root = tree.getroot()
+
+    # Generate a random vector using NumPy and normalize it
+    random_vector = np.random.rand(3)
+    normalized_vector = random_vector / np.linalg.norm(random_vector)
+
+    # Collect joints to remove
+    joints_to_remove = ['y_rotation_joint', 'z_rotation_joint']
+    links_to_remove = ['x_rotating_link', 'y_rotating_link']
+
+    # Remove specified joints
+    for joint in root.findall('joint'):
+        if joint.get('name') in joints_to_remove:
+            root.remove(joint)
+
+    # Remove specified links
+    for link in root.findall('link'):
+        if link.get('name') in links_to_remove:
+            root.remove(link)
+
+    # Update the x_rotation_joint to connect base_link directly to rectangle_link
+    for joint in root.findall('joint'):
+        if joint.get('name') == 'x_rotation_joint':
+            joint.find('child').set('link', 'rectangle_link')
+            axis = joint.find('axis')
+            axis.set('xyz', f"{normalized_vector[0]} {normalized_vector[1]} {normalized_vector[2]}")
+
+    # Save the modified tree to a new file
+    new_file_name = file_name
+    tree.write(new_file_name)
+
+
 class activeperception(VecTask):
     def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
         conditional_print('running __init__... instance of activeperception created')
@@ -32,8 +69,8 @@ class activeperception(VecTask):
         self.max_push_effort = self.cfg["env"]["maxEffort"]
         self.max_episode_length = 500
 
-        self.cfg["env"]["numObservations"] = 6
-        self.cfg["env"]["numActions"] = 3
+        self.cfg["env"]["numObservations"] = 2
+        self.cfg["env"]["numActions"] = 1
 
         super().__init__(config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
 
@@ -44,8 +81,11 @@ class activeperception(VecTask):
         #self.actions_tensor = torch.zeros(self.num_envs * self.num_dof, device=self.device, dtype=torch.float)
         self.torch_rng = torch.Generator(device=self.device)
         self.torch_rng.seed()
-        self.actions_tensor = torch.normal(0.0, 1.0, (1, self.num_envs * self.num_dof), generator=self.torch_rng, device=self.device)
-        #self.actions_tensor = torch.tensor([70.0, 0.1, 0.03], device=self.device).repeat(self.num_envs)
+        #test = torch.normal(0.0, 1.0, (1, self.num_envs * self.num_dof), generator=self.torch_rng, device=self.device)
+        #vel = generate_random_joint_velocities(self.num_envs, 1.)
+        #vel = torch.tensor(np.expand_dims(vel.flatten(), axis=0), dtype=torch.float32).to(self.device)
+        #vel = torch.tensor(vel, dtype=torch.float32).to(self.device)
+        self.actions_tensor = torch.ones(size=(1, self.num_envs * self.num_dof), device=self.device)
 
         self.gym.viewer_camera_look_at(
             self.viewer, None, gymapi.Vec3(15.0, 15.0, 15.0), gymapi.Vec3(0, 0, 0))
@@ -73,7 +113,7 @@ class activeperception(VecTask):
         self._create_envs(self.num_envs, self.cfg["env"]['envSpacing'], int(np.sqrt(self.num_envs)))
         
         # load background images into GPU (don't really know if I should put this here, but this function is usually only called once at the beginning, so it seems appropriate enough?)
-        self.bkgs = background_tools.background_to_GPU(input_directory='/imaging/jzhou/stimuli_processing/2024-02-13_11:56', 
+        self.bkgs = background_tools.background_to_GPU(input_directory='/media/jonathan/FastData/objects_and_backgrounds/backgrounds/',
                       sample_size=self.num_envs,
                       image_dimensions=(256,256)
                       )
@@ -100,10 +140,10 @@ class activeperception(VecTask):
         #TEMP2 asset_root = "assets_temp"
         #TEMP3 asset_root = "glb_write_rough_assets" #TEMP2
         #TEMP4 asset_root = "/imaging/jzhou/stimuli_processing/module_output_tests/centre_objects_test/centred_objects_urdf" #TEMP3
-        asset_root = "/imaging/jzhou/stimuli_processing/2024-02-13_11:56/ABO/centred_objects_urdf" #TEMP4
+        asset_root = "/media/jonathan/FastData/objects_and_backgrounds/ABO/centred_objects_urdf" #TEMP4
         asset_list = os.listdir(asset_root) #TEMP4
         #TEMP4 asset_metadata = "../../ABO_exploration/ABO_size_filtered_strict.csv"
-        asset_metadata = "/imaging/jzhou/stimuli_processing/2024-02-13_11:56/ABO/metadata.csv" #TEMP4
+        asset_metadata = "/media/jonathan/FastData/objects_and_backgrounds/ABO/metadata.csv" #TEMP4
         #asset_paths = utils.get_column(asset_metadata, 'path')
 
         # initialize random generator (used to select assets in environment creation loop)
@@ -145,6 +185,9 @@ class activeperception(VecTask):
                 #dir_path = self.img_dir + '/' + dir_name
                 #os.mkdir(dir_path)
 
+            # Example usage
+            modify_urdf(os.path.join(asset_root, asset_file))
+            #asset = self.gym.load_asset(self.sim, asset_root, asset_file, asset_options)
             asset = self.gym.load_asset(self.sim, asset_root, asset_file, asset_options)
             self.num_dof = self.gym.get_asset_dof_count(asset)
 
@@ -159,7 +202,7 @@ class activeperception(VecTask):
             # set rigid body segmentation ID
             num_bodies = self.gym.get_actor_rigid_body_count(env_ptr, actor_handle)
             conditional_print(f'num_bodies: {num_bodies}')
-            self.gym.set_rigid_body_segmentation_id(env_ptr, actor_handle, 3, 1)
+            self.gym.set_rigid_body_segmentation_id(env_ptr, actor_handle, 1, 1)
 
             # add camera sensors to capture the scene
             camera_props = gymapi.CameraProperties()
